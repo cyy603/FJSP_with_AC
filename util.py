@@ -5,9 +5,11 @@ class CaseGenerator():
     def __init__(self, rou, mu, Lambda, delta1, delta2, J, M, V):
         self.processTime = np.array(1, J)
         self.capacity = np.array(1, V)
+        self.jobSize = np.array(1, J)
         self.serviceTime = np.array(1, J + 1)
         self.MreadyTime = np.array(1, M)
         self.VreadyTime = np.array(1, V)
+        self.travelMatrix = np.array(J + 1, J + 1)
         self.ub = np.array(1, J)
         self.lb = np.array(1, J)
         self.rou = rou; self.mu = mu; self.Lambda = Lambda
@@ -16,8 +18,36 @@ class CaseGenerator():
 
     def construct_case(self):
         # Generate the process time for each job
+        for i in range(0, self.J - 1):
+            self.processTime[i] = self.generate_proc_time(self.rou)
+        # Generate the job size for each job
+        for i in range(0, self.J - 1):
+            self.jobSize[i] = self.generate_job_size(self.processTime[i])
+        # Generate the vehicle capacity
+        for i in range(0, self.V - 1):
+            self.jobSize[i] = self.generate_vehicle_cap(self.jobSize, self.mu)
+        # Generate the travel time matrix
+        upper = self.rou * (self.V / self.M)
+        self.travelMatrix = self.generate_travelMatrix(self.J + 1, upper)
+        # Generate the service time
         for i in range(0, self.J):
-            time = self.generate_proc_time(self.rou)
+            self.serviceTime[i] = self.generate_service_time(self.Lambda, self.rou)
+        # Generate the machine ready time
+        for i in range(1, self.M - 1):
+            self.MreadyTime[i] = self.generate_ready_time(self.rou)
+        # Generate the vehicle ready time
+        self.VreadyTime[0] = self.generate_vehi_ready_time1(self.MreadyTime, self.serviceTime[0], self.rou, self.Lambda,
+                                                            self.V, self.M)
+        for i in range(1, self.V - 1):
+            self.VreadyTime[i] = self.generate_vehi_ready_time2(self.MreadyTime, self.serviceTime[0], self.rou, self.Lambda,
+                                                                self.V, self.M)
+        # Generate the lower time window bounds
+        for i in range(0, self.J - 1):
+            self.lb[i] = self.generate_lower_bound(self.processTime[i], self.serviceTime[0], self.travelMatrix[0][i + 1],
+                                                   self.delta1, self.rou, self.J, self.M, self.V)
+        for i in range(0, self.J - 1):
+            self.ub[i] = self.generate_upper_bound(self.lb[i], self.delta2, self.rou)
+
 
     def generate_proc_time(self, rou):
         """
@@ -47,6 +77,7 @@ class CaseGenerator():
          """
          Generate the travel time
          n: The number of customers
+         upper: upper limit of the travel time between the depot and customer node
          """
          upper_triangular = np.random.randint(0, upper + 1, size = (n, n))
          upper_triangular = np.triu(upper_triangular, k = 1)
@@ -122,5 +153,5 @@ class CaseGenerator():
         rou: maximum process time
         lb: lower bound calculated before
         """
-        k = np.floor(random)
+        k = np.floor(random.uniform(0, np.floor(delta2 * rou)))
         return lb + k
