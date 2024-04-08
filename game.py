@@ -1,6 +1,8 @@
 from enum import Enum
 import random
 import numpy as np
+import pandas as pd
+from util import CaseGenerator
 from uniform_gen import uni_instance_gen
 
 class TableType(Enum):
@@ -9,6 +11,7 @@ class TableType(Enum):
     taillard_generator = 3
     reader = 4
     benchmark = 5
+    IPDS = 6
 
 class GeneneratorSpecs(Enum):
     Problems = 1
@@ -19,6 +22,7 @@ class GeneneratorSpecs(Enum):
     DistParams = 6
     Path = 7
     Category = 8
+    ProbParams = 9
 
 class gametable():
 
@@ -31,6 +35,8 @@ class gametable():
             return gametable.instances_reader(specs)
         elif type == TableType.benchmark:
             return gametable.benchmark_generator(specs)
+        elif type == TableType.IPDS:
+            return gametable.IPDS_generator(specs)
 
     def benchmark_generator(specs=None):
 
@@ -66,6 +72,36 @@ class gametable():
             costs_probs[p] = costs
 
         return problems, costs_probs
+    def IPDS_generator(specs=None):
+        # base_path = 'Dataset/' + name + '/'
+        # product_data = pd.read_excel(base_path + 'other.xlsx')
+        # proc_time = product_data.iloc[:, 3]
+        probs = specs.get(GeneneratorSpecs.Problems)
+        repetitions = specs.get(GeneneratorSpecs.Repetitions)
+        rou = specs.get(GeneneratorSpecs.ProbParams)['rou']
+        mu = specs.get(GeneneratorSpecs.ProbParams)['mu']
+        problem = {(j, m): [] for (j, m) in probs}
+
+        costs_probs = {}
+        for p in probs:
+            njobs = p[0]; nmachines = p[1]
+            case = CaseGenerator(rou, mu, njobs, nmachines)
+            data_prob = case.construct_case()
+            proc_time = data_prob['processTime']
+
+            jobs = [[[] for _ in range(njobs)] for _ in range(repetitions)]
+            costs = [[{} for _ in range(njobs)] for _ in range(repetitions)]
+
+            for rep in range(repetitions):
+                for j in range(njobs):
+                    m = 1
+                    jobs[rep][j] = list([1])
+                    costs[rep][j][m] = float(proc_time[j])
+
+            problem[p] = jobs
+            costs_probs[p] = costs
+
+        return problem, costs_probs
 
     def instances_reader(specs=None):
 
@@ -79,12 +115,11 @@ class gametable():
 
         data = {(j,m): [] for (j,m) in probs}
         for (j,m) in probs:
+            if category == 'Taillard':   data_prob = np.load('TaillardGeneratedSet/GeneratedTai{}_{}_seed{}.npy'.format(j, m, seed))
+            elif category == 'Gaussian': data_prob = np.load('GaussianSet/GaussianSet{}_{}.npy'.format(j, m), allow_pickle = True)
+            elif category == 'Poisson':  data_prob = np.load('PoissonSet/PoissonSet{}_{}.npy'.format(j, m), allow_pickle = True)
 
-           if category == 'Taillard':   data_prob = np.load('TaillardGeneratedSet/GeneratedTai{}_{}_seed{}.npy'.format(j, m, seed))
-           elif category == 'Gaussian': data_prob = np.load('GaussianSet/GaussianSet{}_{}.npy'.format(j, m), allow_pickle = True)
-           elif category == 'Poisson':  data_prob = np.load('PoissonSet/PoissonSet{}_{}.npy'.format(j, m), allow_pickle = True)
-
-           data[(j,m)] = data_prob
+            data[(j,m)] = data_prob
 
         problems = {}
         costs_probs = {}
@@ -220,6 +255,7 @@ class gametable():
             return max(0.1, distribution(mu=distparams["mu"], sigma=distparams["sigma"]))
         elif distribution == np.random.poisson:
             return max(0.1, float(distribution(lam=distparams["lam"], size=1)))
+
 
 
 

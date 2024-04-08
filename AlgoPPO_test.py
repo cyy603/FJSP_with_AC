@@ -75,11 +75,11 @@ class Algorithm_PPO():
         modelpath_policy = path_model + "model_policy" + str(nep_model) + ".txt"
         modelpath_value = path_model + "model_value" + str(nep_model) + ".txt"
 
-        checkpoint = torch.load(modelpath_policy)
+        checkpoint = torch.load(modelpath_policy, map_location=torch.device('cpu'))
         self._model_policy.coremdl.load_state_dict(checkpoint['model_state_dict'])
         # self._model_policy.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
 
-        checkpoint = torch.load(modelpath_value)
+        checkpoint = torch.load(modelpath_value, map_location=torch.device('cpu'))
         self._model_value.coremdl.load_state_dict(checkpoint['model_state_dict'])
         # self._model_value.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
 
